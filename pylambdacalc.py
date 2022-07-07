@@ -326,22 +326,34 @@ if __name__ == '__main__':
         if x.lower() == 'quit':
             break
         if x.lower() == 'simplify':
-            print("Input polynomial you want to simplify.")
-            y = input('in>')
-            try:
-                poly = tokenize(y)
-                given = Polynomial(poly)
-                print(f"\n {given} \n \n in admissible form is \n \n {given.admiss()} \n")
-            except:
-                raise LambdaSyntaxError('Input polynomial not in correct form.')
+            flag = True
+            while flag:
+                print("Input polynomial you want to simplify.")
+                y = input('in> ')
+                try:
+                    poly = tokenize(y)
+                    given = Polynomial(poly)
+                    print(f"\n {given} \n \n in admissible form is \n \n {given.admiss()} \n")
+                except:
+                    try: 
+                        if y.lower() == 'quit':
+                            flag = False
+                    except:
+                        raise LambdaSyntaxError('Input polynomial not in correct form.')
         elif x.lower() == 'compute differential':
-            print("Input polynomial you want to compute the differential of.")
-            y = input('in>')
-            try:
-                poly = tokenize(y)
-                given = Polynomial(poly)
-                print(f"\n The differential of \n \n {given} \n \n is \n \n {given.deriv()}. \n ")
-            except:
-                raise LambdaSyntaxError('Input polynomial not in correct form.')
+            flag = True
+            while flag:
+                print("Input polynomial you want to compute the differential of.")
+                y = input('in> ')
+                try:
+                    poly = tokenize(y)
+                    given = Polynomial(poly)
+                    print(f"\n The differential of \n \n {given} \n \n is \n \n {given.deriv()}. \n ")
+                except:
+                    try:
+                        if y.lower() == 'quit':
+                            flag = False
+                    except:
+                        raise LambdaSyntaxError('Input polynomial not in correct form.')
         else:
             raise LambdaEvaluationError('Command not defined.')
