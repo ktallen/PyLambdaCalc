@@ -280,11 +280,6 @@ class Polynomial:
         return mon
 
     def __mul__(self, other):
-        # sign = []
-        # for mon1 in self.sign:
-        #     for mon2 in other.sign:
-        #         sign.append(mon1 + mon2)
-        # return Polynomial(sign)
         return Polynomial(mul(self.sign, other.sign))
 
     def __add__(self, other):
