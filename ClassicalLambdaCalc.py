@@ -1,6 +1,9 @@
 import doctest
 import scipy.special
 import math
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
 
 # from helpers import *
 
@@ -147,7 +150,7 @@ def reduce(poly):
 
     return mergesort(newpoly, lambda left, right : not lexicographicorder(left, right) and not left == right)
 
-def admiss(poly): #think about the process of making a monomial admissible
+def admiss(poly):
     '''
     Takes in tuple representing monomial and makes it admissible. Returns list representing admissed polynomial.
     '''
@@ -219,7 +222,7 @@ def deriv(poly):
     for mon in poly:
         prod += deriv([mon])
     
-    return reduce(prod) #maybe should call admiss
+    return reduce(prod) 
 
 #############################
 # Helper functions: parsing #
@@ -272,91 +275,6 @@ def detokenize(lst):
         if i != len(lst) - 1:
             mon += ' + '
     return mon
-
-######################################
-# Helper functions: table generation #
-######################################
-
-def completecycle(poly, CTable): #not right; prob need to account for case when something is tagged by something in the same column
-    '''
-    Given a polynomial in the lambda algebra, and dictionaries storing tagging information, 
-    updates tagging information by trying to completing polynomial to a cycle; if the polynomial 
-    is completed to a cycle, no updates are made, and otherwise updates input dictionaries accordingly.
-
-    poly: polynomial in the lambda algebra (represented in list form)
-    tags: dictionary containing information which tells us what monomials are tagging; tags[x] = y iff x tags y
-    tagged: dictionary containing information which tells us what monomials are tagged: tagged[y] = x iff x tags y
-    '''
-
-    boundary = deriv(poly)
-
-    if len(boundary) == 0: #if the polynomial is a cycle, then done
-        return
-
-    leadingterm = boundary[0]
-    ltstr = detokenize([leadingterm])
-
-    if ltstr in CTable.tags:
-        return 
-
-    fragment = str(leadingterm[-1])
-    
-    if ltstr in CTable.table[leadingterm[0]][sum(leadingterm) - leadingterm[0]] and ltstr not in CTable.tagged:
-        tagger = detokenize([poly[0]])
-        taggee = ltstr
-        CTable.tagged[taggee] = tagger
-        CTable.tags[tagger] = taggee 
-        if len(poly[0]) == 1 and leadingterm[-1] == 0:
-            tagger = detokenize([poly[0] + (0,)])
-            taggee = ltstr + ' 0'
-            CTable.tagged[taggee] = tagger
-            CTable.tags[tagger] = taggee #im kinda hardcoding this... and its wrong! see notes
-
-    #check to see if 
-    for i in range(1,len(leadingterm)):
-        #check to see if portion of leading term is in table
-        portion = leadingterm[i:]
-        portionstr = detokenize([portion])
-        stem = sum(portion)
-        if portionstr in CTable.table[portion[0]][stem - portion[0]]:
-            # if i == 0 and portionstr not in CTable.tagged:
-            #     tagger = detokenize([poly[0]])
-            #     taggee = portionstr
-            #     CTable.tagged[taggee] = tagger
-            #     CTable.tags[tagger] = taggee 
-            #     return
-            if portionstr in CTable.tagged:
-                preimage = [leadingterm[:i] + tokenize(CTable.tagged[portionstr])[0]]
-                return completecycle(poly + preimage, CTable)
-
-    # if leadingterm[-1] == 0: #this is sus; might modify stuff i dont want it to.
-    #     trunc = leadingterm[:-1]
-    #     completecycle([trunc], CTable)
-    #     truncstr = detokenize([trunc])
-    #     if truncstr in CTable.tagged:
-    #         CTable.tagged[ltstr] = CTable.tagged[truncstr] + ' 0'
-    #         CTable.tags[CTable.tagged[ltstr]] = ltstr
-        
-
-    # for i in range(len(leadingterm) - 2, -1, -1): #maybe should be range(..., 0, -1)
-    #     fragment = str(leadingterm[i]) + ' ' + fragment
-    #     if fragment in CTable.tagged:
-    #         try:
-    #             preimage = tokenize(CTable.tagged[fragment])
-    #             summand = [leadingterm[:i] + preimage[0]]
-    #             return completecycle(poly + summand, CTable)
-    #         except Exception as e:
-    #             print(e)
-    #             print(preimage)
-    #             print(leadingterm[:i])
-    
-    # # fragment = str(leadingterm[0]) + ' ' + fragment
-    # tagger = detokenize([poly[0]])
-    # taggee = detokenize([leadingterm])
-
-    # CTable.tagged[taggee] = tagger
-    # CTable.tags[tagger] = taggee
-    # return
 
 ########################
 # The Polynomial class #
@@ -427,7 +345,227 @@ class Polynomial:
     def __ge__(self, other):
         return not self < other
 
-class CurtisTable:
+######################################
+# Helper functions: table generation #
+######################################
+
+def completecycle(poly, CTable):
+    '''
+    Given a polynomial in the lambda algebra, and dictionaries storing tagging information, 
+    updates tagging information by trying to completing polynomial to a cycle; if the polynomial 
+    is completed to a cycle, no updates are made, and otherwise updates input dictionaries accordingly.
+
+    poly: polynomial in the lambda algebra (represented in list form)
+    tags: dictionary containing information which tells us what monomials are tagging; tags[x] = y iff x tags y
+    tagged: dictionary containing information which tells us what monomials are tagged: tagged[y] = x iff x tags y
+    '''
+
+    boundary = deriv(poly)
+
+    if len(boundary) == 0: #if the polynomial is a cycle, then done
+        return
+
+    leadingterm = boundary[0]
+    ltstr = detokenize([leadingterm])
+
+    if ltstr in CTable.tags:
+        return 
+
+    fragment = str(leadingterm[-1])
+    
+    if ltstr in CTable.table[leadingterm[0]][sum(leadingterm) - leadingterm[0]] and ltstr not in CTable.tagged:
+        tagger = detokenize([poly[0]])
+        taggee = ltstr
+        CTable.tagged[taggee] = tagger
+        CTable.tags[tagger] = taggee 
+        if len(poly[0]) == 1 and leadingterm[-1] == 0:
+            tagger = detokenize([poly[0] + (0,)])
+            taggee = ltstr + ' 0'
+            CTable.tagged[taggee] = tagger
+            CTable.tags[tagger] = taggee 
+
+    for i in range(1,len(leadingterm)):
+        #check to see if portion of leading term is in table
+        portion = leadingterm[i:]
+        portionstr = detokenize([portion])
+        stem = sum(portion)
+        if portionstr in CTable.table[portion[0]][stem - portion[0]]:
+            # if i == 0 and portionstr not in CTable.tagged:
+            #     tagger = detokenize([poly[0]])
+            #     taggee = portionstr
+            #     CTable.tagged[taggee] = tagger
+            #     CTable.tags[tagger] = taggee 
+            #     return
+            if portionstr in CTable.tagged:
+                preimage = [leadingterm[:i] + tokenize(CTable.tagged[portionstr])[0]]
+                return completecycle(poly + preimage, CTable)
+
+    # if leadingterm[-1] == 0: #this is sus; might modify stuff i dont want it to.
+    #     trunc = leadingterm[:-1]
+    #     completecycle([trunc], CTable)
+    #     truncstr = detokenize([trunc])
+    #     if truncstr in CTable.tagged:
+    #         CTable.tagged[ltstr] = CTable.tagged[truncstr] + ' 0'
+    #         CTable.tags[CTable.tagged[ltstr]] = ltstr
+        
+
+    # for i in range(len(leadingterm) - 2, -1, -1): #maybe should be range(..., 0, -1)
+    #     fragment = str(leadingterm[i]) + ' ' + fragment
+    #     if fragment in CTable.tagged:
+    #         try:
+    #             preimage = tokenize(CTable.tagged[fragment])
+    #             summand = [leadingterm[:i] + preimage[0]]
+    #             return completecycle(poly + summand, CTable)
+    #         except Exception as e:
+    #             print(e)
+    #             print(preimage)
+    #             print(leadingterm[:i])
+    
+    # # fragment = str(leadingterm[0]) + ' ' + fragment
+    # tagger = detokenize([poly[0]])
+    # taggee = detokenize([leadingterm])
+
+    # CTable.tagged[taggee] = tagger
+    # CTable.tags[tagger] = taggee
+    # return
+
+def longestmon(cell):
+    '''
+    Given a cell in the Curtis table, determines the length of the longest monomial in that cell.
+
+    cell: list, (to be set) containing strings representing monomials in the lambda algebra.
+    '''
+    maxi = 0
+    for i in cell:
+        if len(i) > maxi:
+            maxi = len(i)
+    
+    return maxi
+
+def linscale(factor = 1):
+    '''
+    Returns the function "multiplication by (factor)".
+    '''
+    def prod(number):
+        return factor*number
+    return prod
+
+def logscale(factor = 1):
+    '''
+    Returns the function "x \mapsto log (factor * x)"
+    '''
+    def prod(number):
+        return math.log(factor * number)
+    return prod
+
+def makegrid(CTable, wfunc = linscale(1), hfunc = linscale(1)): #TODO: change wunit, hunit to functions wfunc, hfunc: \bbN \to \bbN instead, for a more sophisticated rule for scaling.
+    '''
+    Makes an empty grid in matplotlib that can house Curtis table.
+
+    CTable: CurtisTable object.
+    wfunc: function R -> R; takes in a number and outputs horizontal scaling factor for that number. Recommend it to be increasing.
+    hfunc: function R -> R; takes in a number and outputs vertical scaling factor for that number. Recommend it to be increasing.
+    '''
+    width = sum([wfunc(i) for i in CTable.maxcellwidths])
+    height = sum([hfunc(i) for i in CTable.maxcellsizes])
+
+    #draw horizontal lines
+    fig, ax = plt.subplots()
+    plt.rcParams['text.usetex'] = True
+
+    plt.xlim(0, width)
+    plt.ylim(-height,0)
+
+    currheight = 0
+    plt.axline((0, 0), (width, 0), linewidth = 0.5)
+    ytix = []
+
+    for i in range(len(CTable.maxcellsizes)):
+        currheight += hfunc(CTable.maxcellsizes[i])
+        plt.axline((0, -currheight), (width, -currheight), linewidth = 0.5)
+        ytix.append(-(currheight - hfunc(CTable.maxcellsizes[i]) / 2))
+
+
+    #draw vertical lines
+    currwidth = 0
+    plt.axline((0, 0), (0, height), linewidth = 0.5)
+    xtix = []
+
+    for i in range(len(CTable.maxcellwidths)):
+        currwidth += wfunc(CTable.maxcellwidths[i])
+        plt.axline((currwidth, 0), (currwidth, height), linewidth = 0.5)
+        xtix.append(currwidth - wfunc(CTable.maxcellwidths[i]) / 2)
+
+    xlabels = []
+    ylabels = []
+
+    for i in range(len(xtix)):
+        xlabels.append(i)
+        ylabels.append((2*i + 1, i + 1))
+
+    plt.xticks(xtix, xlabels)
+    plt.yticks(ytix, ylabels, rotation = 45)
+
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
+    ax.set_xlabel(r'$t - s$', labelpad = 8, color="blue")
+    ax.set_ylabel(r'($2n - 1$, $n$)', labelpad = 10, rotation = 45, color="blue")
+    
+    return fig, ax
+
+def gatherpositions(CTable, wfunc, hfunc):
+    '''
+    Gathers the position coordinates of each dot that will be placed in the Curtis table.
+
+    CTable: CurtisTable object.
+    wfunc: function R -> R; takes in a number and outputs horizontal scaling factor for that number. Recommend it to be increasing.
+    hfunc: function R -> R; takes in a number and outputs vertical scaling factor for that number. Recommend it to be increasing.
+    '''
+    #gather the y-coordinates of the top of each row. The last entry will be the bottom of the bottommost row.
+    lasttop = 0
+    tops = [lasttop]
+    for i in range(len(CTable.maxcellsizes)):
+        lasttop -= hfunc(CTable.maxcellsizes[i])
+        tops.append(lasttop)
+
+    #gather the x-coordinates of the left of each column. The last entry will be the right of the rightmost row.
+    lastleft = 0
+    lefts = [lastleft]
+    for i in range(len(CTable.maxcellwidths)):
+        lastleft += wfunc(CTable.maxcellwidths[i])
+        lefts.append(lastleft)
+
+    xcoors = []
+    ycoors = []
+    positions = {}
+    monomialat = {}
+
+    for i in range(len(CTable.table)):
+        for j in range(len(CTable.table[i])):
+            top = tops[i]
+            bottom = tops[i + 1]
+            left = lefts[i + j]
+            right = lefts[i + j + 1]
+
+            xcoor = left + (right - left)/6
+            yinc = (bottom - top)/(len(CTable.table[i][j]) + 1)
+            ycoor = top + yinc
+
+            for elt in CTable.table[i][j]:
+                xcoors.append(xcoor)
+                ycoors.append(ycoor)
+                positions[elt] = (xcoor, ycoor)
+                monomialat[(xcoor, ycoor)] = elt
+
+                ycoor += yinc
+
+    return xcoors, ycoors, positions, monomialat
+
+#########################
+# The CurtisTable class #
+#########################
+
+class CurtisTable: #TODO: Modify Curtis tables so that each cell is a set, not a list. (faster checking membership.)
     '''
     Class for Curtis tables.
     '''
@@ -450,8 +588,9 @@ class CurtisTable:
             if not isinstance(i, list) or len(i) != len(table):
                 raise LambdaEvaluationError('table malformed.')
         self.table = table
-        self.stem = 0
+        self.stem = len(table) - 1
         self.maxcellsizes = [max([len(x) for x in table[i]]) for i in range(len(table))]
+        self.maxcellwidths = [max([longestmon(table[i][i - j]) for j in range(i + 1)]) for i in range(self.stem + 1)]
         self.tags = tags
         self.tagged = tagged
     
@@ -509,9 +648,10 @@ class CurtisTable:
         #update maxcellsizes
         for i in range(len(self.maxcellsizes)):
             if len(self.table[i][-1]) > self.maxcellsizes[i]:
-                self.maxcellsizes[i] = self.maxcellsizes[i]
+                self.maxcellsizes[i] = len(self.table[i][-1])
 
         self.maxcellsizes.append(2) #biggest size in the newly made row is always 2
+        self.maxcellwidths.append(max([longestmon(self.table[j][self.stem - j]) for j in range(self.stem + 1)])) 
 
     def __str__(self):
         prod = ''
@@ -519,17 +659,58 @@ class CurtisTable:
             prod += f'{self.table[i]}\n'
 
         return prod
+
+    def display(self, wfunc, hfunc):
+        fig, ax = makegrid(self, wfunc, hfunc)
+        xcoors, ycoors, positions, monomialat = gatherpositions(self, wfunc, hfunc)
+        #change the colors of those that aren't tagged
+
+        plt.scatter(xcoors, ycoors, s = 1, color = 'black')
+
+        #add tags to each dot, telling what monomial it is.
+        width = sum([wfunc(self.maxcellwidths[i]) for i in range(len(self.maxcellwidths))])
+        height = sum([hfunc(self.maxcellsizes[i]) for i in range(len(self.maxcellsizes))])
+
+        # ax.annotate(
+        #     text = '',
+        #     xy = (0,0),
+        #     xytext = (width/10, height/10),
+        #     textcoords='offset points'
+        # )
+        # def 
+        for i in self.tags:
+            try:
+                start = positions[i]
+                end = positions[self.tags[i]]
+
+                # dx, dy = end[0] - start[0], end[1] - start[1]
+                plt.annotate(
+                    "", xy=end, xytext=start,
+                    arrowprops=dict(arrowstyle="->")
+                    )
+            except:
+                continue
+    
+        for i in range(len(xcoors)):
+            plt.annotate(
+                text = monomialat[(xcoors[i], ycoors[i])], 
+                xy = (xcoors[i], ycoors[i]),
+                xytext = (width/20, -height/10),
+                textcoords='offset points'
+                )
+        
+        plt.show()
         
 
 if __name__ == '__main__':
     doctest.testmod()
     import test
 
-    # x = CurtisTable()
-    # n = 13
+    x = CurtisTable()
+    n = 14
 
-    # for i in range(n):
-    #     x.expand()
+    for i in range(n):
+        x.expand()
     
     # print(f"\nstem {n}:")
     # # print(f"{x.table}")
@@ -537,11 +718,21 @@ if __name__ == '__main__':
     # print('tags:')
     # print([(j, x.tags[j]) for j in x.tags])
     # print('\n')
+    # print('cell sizes:')
+    # print(x.maxcellsizes)
+    # print('\n')
+    # print('cell widths:')
+    # print(x.maxcellwidths)
+
+    # fig, ax = makegrid(x, logscale(3), logscale(3))
+    # plt.show()
+
+    x.display(logscale(2), logscale(3))
 
     # x = [1, 2, 3, 4]
     # print(x[:-1])
 
-    replon = True
+    replon = False
 
     while replon:
         print("What do you want to do?")
